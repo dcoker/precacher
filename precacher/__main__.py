@@ -35,6 +35,7 @@ def parse_args(args):
                         help="Verbose mode.")
     parser.add_argument("--file",
                         type=argparse.FileType('r'),
+                        required=True,
                         help="Full path to DNS log.")
     parser.add_argument("--format",
                         default=LOG_FORMAT_PIHOLE_DNSMASQ,
@@ -74,9 +75,10 @@ def configure_logging(args):
 
 
 def configure_resolver(args):
+    nameservers = [server.strip() for server in args.servers.split(",")]
+    logging.info("Replaying queries to: %r", nameservers)
     resolver = dns.resolver.Resolver(configure=False)
-    resolver.nameservers = [server.strip() for server in
-                            args.servers.split(",")]
+    resolver.nameservers = nameservers
     return resolver
 
 
