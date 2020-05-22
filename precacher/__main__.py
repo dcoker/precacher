@@ -19,8 +19,10 @@ from tqdm import tqdm
 
 LOG_FORMAT_DNSCRYPT_PROXY_TSV = 'dnscrypt-proxy-tsv'
 LOG_FORMAT_PIHOLE_DNSMASQ = 'pihole-dnsmasq'
+LOG_FORMAT_CUSTOM = 'custom-domain-type'
 LOG_FORMAT_CHOICES = {LOG_FORMAT_DNSCRYPT_PROXY_TSV,
-                      LOG_FORMAT_PIHOLE_DNSMASQ}
+                      LOG_FORMAT_PIHOLE_DNSMASQ,
+                      LOG_FORMAT_CUSTOM}
 
 LOG_FORMAT = '%(levelname)s:%(asctime)s %(message)s'
 ALLOWED_TYPES = {'A', 'AAAA'}
@@ -46,6 +48,10 @@ def parse_args(args):
                         default="192.168.1.1",
                         help="Comma-delimited list of DNS server IP "
                              "addresses.")
+    parser.add_argument("--port",
+                        default=53,
+                        type=int,
+                        help="Port at which to make requests to the nameservers")
     parser.add_argument("--top",
                         default=1000,
                         type=int,
@@ -80,13 +86,15 @@ def configure_resolver(args):
     logging.info("Replaying queries to: %r", nameservers)
     resolver = dns.resolver.Resolver(configure=False)
     resolver.nameservers = nameservers
+    resolver.port = args.port
     return resolver
 
 
 def summarize_queries(args):
     parser = {
         LOG_FORMAT_PIHOLE_DNSMASQ: parse_pihole_dnsmasq,
-        LOG_FORMAT_DNSCRYPT_PROXY_TSV: parse_dnscrypt_proxy_tsv
+        LOG_FORMAT_DNSCRYPT_PROXY_TSV: parse_dnscrypt_proxy_tsv,
+        LOG_FORMAT_CUSTOM: parse_custom_domain_list_tsv
     }[args.format]
 
     query_count = 0
@@ -108,6 +116,11 @@ def summarize_queries(args):
 def parse_dnscrypt_proxy_tsv(line):
     line = line.strip().split("\t")
     return Query(line[3], line[2])
+
+
+def parse_custom_domain_list_tsv(line):
+    line = line.strip().split("\t")
+    return Query(line[1], line[0])
 
 
 def parse_pihole_dnsmasq(line):
