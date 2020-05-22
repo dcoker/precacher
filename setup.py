@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='precacher',
     python_requires='>=3.6.0',
-    version='0.2.0',
+    version='0.2.1',
     packages=['precacher'],
     install_requires=['dnspython>=1.16', 'tqdm'],
     entry_points={
