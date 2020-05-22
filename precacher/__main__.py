@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# coding=utf-8
 """
 Replays the top N queries from a Pi-hole or dnscrypt-proxy TSV log
 file against a specific nameserver.
@@ -10,11 +9,13 @@ __author__ = 'dcoker'
 import argparse
 import collections
 import concurrent.futures
+import functools
 import logging
 import multiprocessing
 import re
 
 import dns.resolver
+from tqdm import tqdm
 
 LOG_FORMAT_DNSCRYPT_PROXY_TSV = 'dnscrypt-proxy-tsv'
 LOG_FORMAT_PIHOLE_DNSMASQ = 'pihole-dnsmasq'
@@ -122,13 +123,21 @@ def parse_pihole_dnsmasq(line):
 
 def resolve_top(resolver, max_workers, queries):
     logging.debug("Using %d threads.", max_workers)
+    success = 0
+    bar = lambda k: tqdm(k, total=len(queries), disable=None, unit="q")
+    fn = functools.partial(resolve, resolver)
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) \
             as executor:
-        for query, _ in queries:
-            executor.submit(resolve, query, resolver)
+        for result in bar(executor.map(fn, (q[0]
+                                            for q in
+                                            queries))):
+            if result:
+                success = success + 1
+    logging.info("%d/%d success, %d failed.", success, len(queries),
+                 len(queries) - success)
 
 
-def resolve(query, resolver):
+def resolve(resolver, query):
     try:
         answer = resolver.query(query.query, query.type,
                                 raise_on_no_answer=False)
@@ -136,7 +145,11 @@ def resolve(query, resolver):
             logging.debug("%s => %s", query, answer.rrset)
         else:
             logging.debug("%s => none", query)
+        return True
     except dns.rdatatype.UnknownRdatatype:
         logging.debug("%s => bad type", query)
     except dns.resolver.NXDOMAIN:
         logging.debug("%s => NXDOMAIN", query)
+    except dns.resolver.NoNameservers:
+        logging.debug("%s => no name server", query)
+    return False

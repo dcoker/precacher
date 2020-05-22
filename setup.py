@@ -3,9 +3,9 @@ from setuptools import setup
 setup(
     name='precacher',
     python_requires='>=3.6.0',
-    version='0.1.0',
+    version='0.2.0',
     packages=['precacher'],
-    install_requires=['dnspython>=1.16'],
+    install_requires=['dnspython>=1.16', 'tqdm'],
     entry_points={
         'console_scripts': [
             "precacher=precacher.__main__:main",
